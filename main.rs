@@ -1,11 +1,13 @@
 use reqwest::blocking;
 use scraper::{Html, Selector};
-use polars::prelude::*;
+#[macro_use] extern crate polars_core;
+use polars_core::prelude::*;
 use std::collections::HashMap;
+use csv::Writer;
 
 //figure out how to pass a Vec or recursively pass vals from a Vec
 
-fn main() ->  Result<DataFrame, PolarsError> {
+fn main() {
     let mut url = String::new();
     println!("Name of Event: ");
     let b2 = std::io::stdin().read_line(&mut url).unwrap();
@@ -49,39 +51,46 @@ fn main() ->  Result<DataFrame, PolarsError> {
     }
 
     let mut hm = HashMap::new();
-    for i in 0..(listy2.len() + 1) {
-        hm.insert(&link_title_list[i], &listy2[i]);
+    for i in 0..(listy2.len()) {
+        hm.insert(&listy2[i], &link_title_list[i]);
     }
 
-    for x in listy2 {
-        let scores_response = reqwest::blocking::get(x).expect("Could not load url.");
+    for x in &listy2 {
+        let scores_response = reqwest::blocking::get(x.clone()).expect("Could not load url.");
         let scores_body = scores_response.text().unwrap();
         let scores_document = Html::parse_document(&scores_body);
         let scores_fragment = Html::parse_fragment(&scores_body);
         let tbody_selector = Selector::parse("tbody").unwrap();
         let row_elements_selector = Selector::parse("tbody>tr").unwrap();
         let row_element_data_selector = Selector::parse("td, th").unwrap();
-        let all_tables = scores_fragment.select(&tbody_selector);
-        let row_elements = table.select(&row_elements_selector);
-        let mut rows:Vec<Vec<String>> = Vec::new();
+        let all_tables = scores_fragment.select(&tbody_selector).skip(1);
+        let event_title = hm.get(&x).expect("Can't parse event title.").to_string();
+        let csv_path = format!("C:\\Users\\attk2\\Documents\\Disc Golf Scores\\{event_title}.csv");
+        let mut wtr = csv::Writer::from_path(csv_path).expect("Could not create file.");
+        wtr.write_record(["Place", "Points", "Name", "PDGA #", "Rating", "Par", "Rd1", "Unnamed1", "Rd2", "Unnamed2", "Rd3", "Unnamed3", "Rd4", "Unnamed4", "Total", "Prize"]);
         for table in all_tables{
+            let row_elements = table.select(&row_elements_selector);
             for row_element in row_elements{
                 let mut row = Vec::new();
                 for td_element in row_element.select(&row_element_data_selector){
                     let mut element = td_element.text().collect::<Vec<_>>().join(" ");
                     element = element.trim().replace("\n", " ");
-                    row.push(element);
-                    }
-                rows.push(row)        
+                    print!("{:?}", element);
+                    row.push(element);                    
                 }
-            pub fn from_vec(
-                name: &str,
-                v: Vec<<T as PolarsNumericType>::Native, Global>
-            ) -> ChunkedArray<T>
-
-        let df: PolarsResult<DataFrame> = DataFrame::new(vec![rows.from_vec()])
+                wtr.write_record(&row).expect("Could not write file.");
+            }
+            wtr.flush().expect("Could not close file.");
         }
-}
-df
+        println!("\n> Done")
+//fix polars a;kljsdfaksj;dlf;sladkfjkajsldf;
+        let df = polars_core::prelude::ReadCsv{csv_path
+            .has_header(true)
+            .collect();
+        print!("{:?}", df)
+        }
+    }
+
+
 }
     
